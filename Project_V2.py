@@ -6,27 +6,21 @@ from matplotlib.colors import LogNorm
 from multiprocessing import Process
 import os
 import sys
-#import cv2
-#import glob
-from numba import jit
-#from numba import jitclass  
-from numba import int32, float32
 import time
 from matplotlib.colors import LogNorm
 from matplotlib.offsetbox import AnchoredText
 
 class Simulation_Electron :
-    def __init__(self,folder,density,mobility,relativeeps,timestep,minimalresidue, boundary="none"): #information about the 2DEG
+    def __init__(self,folder,density,mean_free_path,relativeeps,timestep,minimalresidue, temperature ): #information about the 2DEG
         self.folder=folder
+        self.temperature=temperature
         self.density=density #um^-2
         self.minimalresidue=minimalresidue
-        self.mobility=mobility #e-/um^2
-        self.boundary=boundary #type of boundary
+        self.mean_free_path=mean_free_path 
+        self.boundary="momentumconserve"
         self.relativeeps=relativeeps
         self.timestep=timestep
         self.counting=0
-
-        
         
     def createcloudelectron(self,xmin,ymin,xmax,ymax,z,quantity,initialspeed):
         self.iterationcount=0
@@ -41,9 +35,11 @@ class Simulation_Electron :
         else:
             self.quantity=quantity
             self.charge=constants.e*A*self.density/quantity
-        tempox=np.linspace(xmin,xmax,num=round(np.sqrt(self.quantity))) #generate the position of them in x
-        tempoy=np.linspace(ymin,ymax,num=round(np.sqrt(self.quantity)))
-        self.x,self.y=np.meshgrid(tempox,tempoy) #position of the electron
+        #tempox=np.linspace(xmin,xmax,num=round(np.sqrt(self.quantity))) #generate the position of them in x
+        #tempoy=np.linspace(ymin,ymax,num=round(np.sqrt(self.quantity)))
+        #self.x,self.y=np.meshgrid(tempox,tempoy) #position of the electron
+        self.x=random.uniform(low=xmin,high=xmax,size=(self.quantity,self.quantity))
+        self.y=random.uniform(low=ymin,high=ymax,size=(self.quantity,self.quantity))
         self.z=z
         if initialspeed=="rest":
             self.vx=np.zeros((len(self.x),len(self.x)))
@@ -54,8 +50,6 @@ class Simulation_Electron :
 
     def boundarycondition(self):
         debug=False
-        if np.any(self.verbose==3)==True:
-            debug=True
         #force the electron to never quit the testing region
         indexx,indexy=np.nonzero(self.x>self.xmax)
         if debug==True and len(indexx)>0:
@@ -138,8 +132,8 @@ class Simulation_Electron :
                 pass
         #print("internal")
         #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
-        E=np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))*(10**6)**3
-        return(-E)
+        E=np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
+        return(E)
     
     def flexible(self):
         #Adapt the limit of the simulation to follow the particles
@@ -153,8 +147,8 @@ class Simulation_Electron :
             self.xmax=np.max(self.x)
 
     def diffusion(self): #JM: TO MODIF FOR EXPOTENTIAL DAMPING
-        self.vx=self.vx*0.85
-        self.vy=self.vy*0.85
+        self.vx=self.vx*np.exp(-self.timestep/self.mean_free_path)
+        self.vy=self.vy*np.exp(-self.timestep/self.mean_free_path)
     
     def iteration(self):
         self.iterationcount=self.iterationcount + 1
@@ -164,14 +158,19 @@ class Simulation_Electron :
         for i in range(0,len(self.x)):
             for j in range(0,len(self.y)):
                 ax[i,j], ay[i,j], az[i,j] = constants.e/constants.m_e*(self.InternalElectrical(self.x[i,j],self.y[i,j],self.z))
-        self.vx=self.vx+ax*self.timestep
-        self.vy=self.vy+ay*self.timestep
-        residuex=self.timstep*(self.vx+ax*self.timstep/2)
-        residuey=self.timstep*(self.vy+ay*self.timstep/2)
+                
+        deltavx=ax*self.timestep
+        deltavy=ay*self.timestep
+        residuex=self.timestep*(self.vx+ax*self.timestep/2)
+        residuey=self.timestep*(self.vy+ay*self.timestep/2)
         self.x=self.x+residuex
         self.y=self.y+residuey
+        self.vx=self.vx+deltavx
+        self.vy=self.vy+deltavy
         self.residuex=np.mean(np.abs(residuex)) 
         self.residuey=np.mean(np.abs(residuey))
+        print("Average mouvement is ",np.sqrt(self.residuex**2+self.residuey**2))
+
         
     def show_electron(self,save):
         plt.clf()
@@ -186,7 +185,7 @@ class Simulation_Electron :
             plt.savefig(plotname)
         plt.show()
         plt.close()
-        
+    """
     def show_Electrical_Field(self,save):
         plt.clf()
         plt.xlim(self.xmin,self.xmax)
@@ -204,7 +203,7 @@ class Simulation_Electron :
                 Ex[i,j], Ey[i,j], =(self.InternalElectrical(self.x[i,j],self.y[i,j],self.z))
         normE=np.sqrt(Ex**2+Ey**2)
         
-        plt.pcolor(xvec,yvec,normE,zorder=0,norm=LogNorm(vmin=abs(norm.min())))
+        #plt.pcolor(xvec,yvec,normE,zorder=0,norm=LogNorm(vmin=abs(norm.min())))
         plt.colorbar(orientation="horizontal",label="Norm of the electrical field [kg$\cdot$µm/(A$\cdot s^{3}$)]")
         plt.streamplot(xvec,yvec,Ex,Ey,density=1, zorder=25,color="green")# vector field of the plot
         if save==True:
@@ -213,6 +212,7 @@ class Simulation_Electron :
             plt.savefig(plotname)
         plt.show()
         plt.close()
+    """
 
     def lauch(self,maxtime):
         self.show_electron(True)
@@ -224,7 +224,7 @@ class Simulation_Electron :
             self.diffusion()
             self.flexible()
             self.show_electron(True)
-            if self.minimalresidue>self.residuex and self.minimalresidue>self.residuey and self.iteration>100:
+            if self.minimalresidue>self.residuex and self.minimalresidue>self.residuey and self.iterationcount>100:
                 print("We are now into a steady situation.")
                 break
 
@@ -249,23 +249,23 @@ Question:
 
 
 if __name__ == '__main__':
-    folder=
-    density2deg=
-    mobility2deg=
-    relativeeps=
-    timestep=
-    minimalresidue=
-    boundary=
+    folder="test"
+    density2deg=1e3
+    mean_free_path=1e-3
+    relativeeps=1
+    timestep=1e-4
+    minimalresidue=1e-6
+    temperature=0.2
     
-    xmin=
-    ymin=
-    xmax=
-    ymax=
-    quantity=
-    initial_velocity=
-    
-    
-    electrongas=simulationelectron(folder,density2deg,mobility2deg,relativeeps,timestep,minimalresidue,boundary="stop")
+    xmin=-2
+    ymin=-2
+    xmax=2
+    ymax=2
+    quantity=5
+    initial_velocity="rest"
+    z=1e-12
+    timemax=5000
+    electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, z, quantity, initial_velocity)
     print("Starting the simulation")
     electrongas.lauch(timemax)
