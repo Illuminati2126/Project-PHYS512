@@ -17,7 +17,8 @@ class Simulation_Electron :
         self.density=density #um^-2
         self.minimalresidue=minimalresidue
         self.mean_free_path=mean_free_path 
-        self.boundary="momentumconserve"
+        #self.boundary="momentumconserve"
+        self.boundary="periodic"
         self.relativeeps=relativeeps
         self.timestep=timestep
         self.counting=0
@@ -29,110 +30,110 @@ class Simulation_Electron :
         self.xmax=xmax
         self.ymax=ymax
         A=(abs(xmax)+abs(xmin))*(abs(ymax)+abs(ymin)) #area
-        if quantity=="real": #DANGER IT WILL BE BIG AND EXTREMELY HARD TO RUN, IF NOT IMPOSSIBLE TO RUN
-            self.quantity=A*self.density
-            self.charge=constants.e
-        else:
-            self.quantity=quantity
-            self.charge=constants.e*A*self.density/quantity
+        self.quantity=quantity
+        self.charge=constants.e*A*self.density/quantity # artificly augmente the charge by particle
         #tempox=np.linspace(xmin,xmax,num=round(np.sqrt(self.quantity))) #generate the position of them in x
         #tempoy=np.linspace(ymin,ymax,num=round(np.sqrt(self.quantity)))
         #self.x,self.y=np.meshgrid(tempox,tempoy) #position of the electron
-        self.x=random.uniform(low=xmin,high=xmax,size=(self.quantity,self.quantity))
-        self.y=random.uniform(low=ymin,high=ymax,size=(self.quantity,self.quantity))
-        self.z=z
+        self.x=random.uniform(low=xmin,high=xmax,size=(self.quantity))
+        self.y=random.uniform(low=ymin,high=ymax,size=(self.quantity))
         if initialspeed=="rest":
-            self.vx=np.zeros((len(self.x),len(self.x)))
-            self.vy=np.zeros((len(self.y),len(self.y)))
+            self.vx=np.zeros(len(self.x))
+            self.vy=np.zeros(len(self.y))
         else: #JM:Should implement random distribution (e.g. Maxxwell)
-            self.vx=-initialspeed+random.random((len(self.x),len(self.x)))*2*initialspeed #uniform distribution around the 0 with a range of initialspeed
-            self.vy=-initialspeed+random.random((len(self.y),len(self.y)))*2*initialspeed
+            self.vx=-initialspeed+random.random(len(self.x))*2*initialspeed #uniform distribution around the 0 with a range of initialspeed
+            self.vy=-initialspeed+random.random(len(self.y))*2*initialspeed
 
     def boundarycondition(self):
-        debug=False
-        #force the electron to never quit the testing region
-        indexx,indexy=np.nonzero(self.x>self.xmax)
-        if debug==True and len(indexx)>0:
-            print("Charge carrier over xmax for those index:")
-            print("i:"+str(indexx)+" and j:" +str(indexy))
-        for i in indexx:
-            for j in indexy:
-                if self.boundary=="momentumconserve":
-                    self.x[indexx,indexy]=self.xmax
-                    self.vx[indexx,indexy]=-self.vx[indexx,indexy]
-                elif self.boundary=="stop":
-                    self.x[indexx,indexy]=self.xmax
-                    self.vx[indexx,indexy]=0
-                elif self.boundary=="periodic":
-                    self.x[indexx,indexy]=self.xmin+abs(self.x[indexx,indexy]-self.xmax)
-                    self.vx[indexx,indexy]=self.vx[indexx,indexy]
-
-        indexx,indexy=np.nonzero(self.y>self.ymax)
-        if debug==True and len(indexx)>0:
-            print("Charge carrier over ymax for those index:")
-            print("i:"+str(indexx)+" and j:" +str(indexy))
-        for i in indexx:
-            for j in indexy:
-                if self.boundary=="momentumconserve":
-                    self.y[indexx,indexy]=self.ymax
-                    self.vy[indexx,indexy]=-self.vy[indexx,indexy]
-                elif self.boundary=="stop":
-                    self.y[indexx,indexy]=self.ymax
-                    self.vy[indexx,indexy]=0
-                elif self.boundary=="periodic":
-                    self.y[indexx,indexy]=self.ymin+abs(self.y[indexx,indexy]-self.ymax)
-        
-        indexx,indexy=np.nonzero(self.x<self.xmin)
-        if debug==True and len(indexx)>0:
-            print("Charge carrier under xmin for those index:")
-            print("i:"+str(indexx)+" and j:" +str(indexy))
-        for i in indexx:
-            for j in indexy:
-                if self.boundary=="momentumconserve":
-                    self.x[indexx,indexy]=self.xmin
-                    self.vx[indexx,indexy]=-self.vx[indexx,indexy]
-                elif self.boundary=="stop":
-                    self.x[indexx,indexy]=self.xmin
-                    self.vx[indexx,indexy]=0
-                elif self.boundary=="periodic":
-                    self.x[indexx,indexy]=self.xmax-abs(-self.x[indexx,indexy]+self.xmin)
-
-        indexx,indexy=np.nonzero(self.y<self.ymin)
-        if debug==True and len(indexx)>0:
-            print("Charge carrier under ymax for those index:")
-            print("i:"+str(indexx)+" and j:" +str(indexy))
-        for i in indexx:
-            for j in indexy:
-                if self.boundary=="momentumconserve":
-                    self.y[indexx,indexy]=self.ymin
-                    self.vy[indexx,indexy]=-self.vy[indexx,indexy]
-                elif self.boundary=="stop":
-                    self.y[indexx,indexy]=self.ymin
-                    self.vy[indexx,indexy]=0
-                elif self.boundary=="periodic":
-                    self.y[indexx,indexy]=self.ymax-abs(-self.y[indexx,indexy]+self.ymin)
+        while np.any(self.x>=self.xmax) or np.any(self.y>=self.ymax) or np.any(self.x<=self.xmin) or np.any(self.y<=self.ymin):
+            index=np.nonzero(self.x>=self.xmax)
+            if self.boundary=="momentumconserve":
+                self.x[index]=self.xmax
+                self.vx[index]=-self.vx[index]
+            elif self.boundary=="periodic":
+                self.x[index]=self.xmin+abs(self.x[index]-self.xmax)
     
-    def InternalElectrical(self,x,y,z):# electrical field generate by the cloud of electron
+            index=np.nonzero(self.y>=self.ymax)
+            if self.boundary=="momentumconserve":
+                self.y[index]=self.ymax
+                self.vy[index]=-self.vy[index]
+            elif self.boundary=="periodic":
+                self.y[index]=self.ymin+abs(self.y[index]-self.ymax)
+            
+            index=np.nonzero(self.x<=self.xmin)
+            if self.boundary=="momentumconserve":
+                self.x[index]=self.xmin
+                self.vx[index]=-self.vx[index]
+            elif self.boundary=="periodic":
+                self.x[index]=self.xmax-abs(-self.x[index]+self.xmin)
+    
+            index=np.nonzero(self.y<=self.ymin)
+            if self.boundary=="momentumconserve":
+                self.y[index]=self.ymin
+                self.vy[index]=-self.vy[index]
+            elif self.boundary=="periodic":
+                self.y[index]=self.ymax-abs(-self.y[index]+self.ymin)
+    
+    def InternalElectrical(self,x,y):# electrical field generate by the cloud of electron
         Ex=0
         Ey=0
-        Ez=0
-        with np.errstate(invalid='raise'):
+        with np.errstate(invalid='raise'): # just to catch division by 0 and avoid inf
+            #direct radius without any funky boundary
             xd=(x-self.x)
             yd=(y-self.y)
-            zd=(z-self.z)
-            distance=(np.sqrt(xd**2+yd**2+zd**2))
-            index=np.nonzero(distance==0)
-            distance[index]=1 
+            
+            
+            """
+            #those are the other distance due to the periodic boundaries
+            tempomin=((y-self.ymin)-(self.ymax-self.y)) # the two possible way to pass by the boundary, min to max
+            tempomax=((self.ymax-y)-(self.y-self.ymin)) # or max to min
+            print(tempomin)
+            print(tempomax)
+            xbound=tempomin
+            indextempo=np.greater(tempomin,tempomax)
+            print(indextempo)
+            xbound[indextempo]=tempomax
+            
+            tempomin=((x-self.xmin)-(self.x-self.xmax))
+            tempomax=((x-self.xmax)-(self.x-self.xmin))
+            ybound=tempomin
+            indextempo=np.greater(tempomin,tempomax)
+            ybound[indextempo]=tempomax
+            
+            distancebound=np.sqrt(xbound**2+ybound**2)
+            
+            
+            distance=(np.sqrt(xd**2+yd**2))
+            
+            
+            indextempo=np.greater(distance,distancebound) #index where passing througth the boundary is closer than the normal way
+            
+            distance[indextempo]=distancebound[indextempo]
+            xd[indextempo]=xbound[indextempo]
+            yd[indextempo]=ybound[indextempo]
+            """
+            
+            Lx=self.xmax-self.xmin
+            Ly=self.ymax-self.ymin
+            index=(Lx)/2<np.abs(xd)
+            xd[index]=(Lx-np.abs(xd[index]))*-(xd[index]/np.abs(xd[index]))
+            index=(Ly)/2<np.abs(yd)
+            yd[index]=(Ly-np.abs(yd[index]))*-(yd[index]/np.abs(yd[index]))
+            
+            
+            distance=(np.sqrt(xd**2+yd**2))
+            
+            index=np.nonzero(distance==0) # two particle at the same position
+            distance[index]=1 #the xd,yd,zd must be equal to 0, so they make E=0. It is only done to avoid division by 0
             try:
                 Ex=xd*distance**-3
                 Ey=yd*distance**-3
-                Ez=zd*distance**-3
             except : 
                 print("There is a problem. Go see the InternalElectrical")
                 pass
         #print("internal")
         #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
-        E=np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
+        E=np.array([np.sum(Ex),np.sum(Ey)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
         return(E)
     
     def flexible(self):
@@ -152,12 +153,10 @@ class Simulation_Electron :
     
     def iteration(self):
         self.iterationcount=self.iterationcount + 1
-        ax=np.zeros((len(self.x),len(self.y)))
-        ay=np.zeros((len(self.x),len(self.y)))
-        az=np.zeros((len(self.x),len(self.y)))
+        ax=np.zeros(len(self.x))
+        ay=np.zeros(len(self.x))
         for i in range(0,len(self.x)):
-            for j in range(0,len(self.y)):
-                ax[i,j], ay[i,j], az[i,j] = constants.e/constants.m_e*(self.InternalElectrical(self.x[i,j],self.y[i,j],self.z))
+            ax[i], ay[i] = constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i]))
                 
         deltavx=ax*self.timestep
         deltavy=ay*self.timestep
@@ -169,10 +168,9 @@ class Simulation_Electron :
         self.vy=self.vy+deltavy
         self.residuex=np.mean(np.abs(residuex)) 
         self.residuey=np.mean(np.abs(residuey))
-        print("Average mouvement is ",np.sqrt(self.residuex**2+self.residuey**2))
-
         
     def show_electron(self,save):
+        plt.pause(0.001)
         plt.clf()
         plt.xlim(self.xmin,self.xmax)
         plt.ylim(self.ymin,self.ymax) 
@@ -184,7 +182,7 @@ class Simulation_Electron :
             plotname=os.path.join(os.getcwd(),self.folder,SaveFile)
             plt.savefig(plotname)
         plt.show()
-        plt.close()
+        #plt.close()
     """
     def show_Electrical_Field(self,save):
         plt.clf()
@@ -217,16 +215,16 @@ class Simulation_Electron :
     def lauch(self,maxtime):
         self.show_electron(True)
         while self.iterationcount<maxtime :
-            if self.iterationcount%250:
-                print("Iteration:"+str(self.iterationcount))
             self.iteration()
             self.boundarycondition()
             self.diffusion()
             self.flexible()
-            self.show_electron(True)
+            self.show_electron(False)
             if self.minimalresidue>self.residuex and self.minimalresidue>self.residuey and self.iterationcount>100:
                 print("We are now into a steady situation.")
                 break
+            if (self.iterationcount%50)==0:
+                print("Iteration:"+str(self.iterationcount))
 
 """
 To do :
@@ -249,22 +247,22 @@ Question:
 
 
 if __name__ == '__main__':
-    folder="test"
+    folder="Picture"
     density2deg=1e3
     mean_free_path=1e-3
     relativeeps=1
-    timestep=1e-4
-    minimalresidue=1e-6
+    timestep=5e-6
+    minimalresidue=8e-6
     temperature=0.2
     
     xmin=-2
     ymin=-2
     xmax=2
     ymax=2
-    quantity=5
+    quantity=9
     initial_velocity="rest"
     z=1e-12
-    timemax=5000
+    timemax=1000000
     electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, z, quantity, initial_velocity)
     print("Starting the simulation")
