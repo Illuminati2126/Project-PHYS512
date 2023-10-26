@@ -11,21 +11,21 @@ from matplotlib.colors import LogNorm
 from matplotlib.offsetbox import AnchoredText
 
 class Simulation_Electron :
-    def __init__(self,folder,density,mean_free_path,relativeeps,timestep,minimalresidue, temperature,External_Electric_Field): #information about the 2DEG
+    def __init__(self,folder,density,mean_free_path,relativeeps,timestep,minimalresidue, temperature, External_Electric_Field ): #information about the 2DEG
         self.folder=folder
         self.temperature=temperature
         self.density=density #um^-2
         self.minimalresidue=minimalresidue
         self.mean_free_path=mean_free_path 
         #self.boundary="momentumconserve"
-        self.boundary="periodic"
+        self.boundary="momentum conserve"
         self.relativeeps=relativeeps
         self.timestep=timestep
         self.counting=0
         self.External_E=External_Electric_Field
-
         
-    def createcloudelectron(self,xmin,ymin,xmax,ymax,quantity,initialspeed):
+        
+    def createcloudelectron(self,xmin,ymin,xmax,ymax,z,quantity,initialspeed):
         self.iterationcount=0
         self.xmin=xmin
         self.ymin=ymin
@@ -98,8 +98,29 @@ class Simulation_Electron :
             except : 
                 print("There is a problem. Go see the InternalElectrical")
                 pass
-        #print("internal")
-        #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
+        
+        
+            index=np.logical_not(np.logical_and(xd==0,yd==0))
+            sign=xd[index]
+            zeroindex=np.logical_not(xd[index]==0)
+            sign[zeroindex]=(xd[zeroindex]/np.abs(xd[zeroindex]))
+            xd[index]=(Lx-np.abs(xd[index]))*-(sign)
+            zeroindex=np.logical_not(xd[index]==0)
+            sign=yd[index]
+            sign[zeroindex]=(yd[zeroindex]/np.abs(yd[zeroindex]))
+            yd[index]=(Ly-np.abs(yd[index]))*-(sign)
+            
+            distance=(np.sqrt(xd**2+yd**2))
+            
+            index=np.nonzero(distance==0) # two particle at the same position
+            distance[index]=1 #the xd,yd,zd must be equal to 0, so they make E=0. It is only done to avoid division by 0
+            try:
+                Ex=Ex+xd*distance**-3
+                Ey=Ey+yd*distance**-3
+            except : 
+                print("There is a problem. Go see the InternalElectrical")
+                pass
+        
         E=np.array([np.sum(Ex),np.sum(Ey)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
         return(E)
     
@@ -143,18 +164,6 @@ class Simulation_Electron :
         plt.ylim(self.ymin,self.ymax) 
         plt.xlabel("X [µm]")
         plt.ylabel("Y [µm]")
-        x=np.linspace(self.xmin,self.xmax,num=200)
-        Ex,Ey=self.External_E(x,0,self.iterationcount,self.timestep)
-        index=Ey<0
-        minus=Ey[index]
-        xminus=x[index]
-        plt.scatter(xminus,minus,color="red")
-        index=Ey>0 
-        plus=Ey[index]
-        xplus=x[index]
-        plt.scatter(xplus, plus,color="blue")
-        
-        
         plt.scatter(self.x,self.y,color="black",s=5, zorder=200)
         if save==True:
             SaveFile = "Figure" + "_step_" + str(self.iterationcount) + ".png" 
@@ -202,34 +211,29 @@ class Simulation_Electron :
             if self.minimalresidue>self.residuex and self.minimalresidue>self.residuey and self.iterationcount>100:
                 print("We are now into a steady situation.")
                 break
-            if (self.iterationcount%100)==0:
+            if (self.iterationcount%50)==0:
                 print("Iteration:"+str(self.iterationcount))
 
 """
 To do :
-    - Check the unit
-    - Ask andrew if this is ok or we should add more
+    - initial condition to modified to have random distribution
+    - add the exp damping term
+    - add external electrical field
 Bonus:
     - create code to have video from the thounsand of png (and delete them after use)
+    - time dependant electrical field
     - optimize the code (electrical field calculation), multiprocessing and python optimization
     - Correlation function (FFT)
     - add extremely funky electric potential
+Question:
+    - should we modif the code to instead use electric potential instead of electric field ? It would let us introduce a infinite/high potential at the boundary to avoid the electron to accumulate to the limit
 
 """
-
 def E_ext(x,y,iteration,timestep):
-    omega=np.pi/100
-    k=np.pi/2
-    norm=np.sqrt(x**2+y**2)
-    #Ex=-1e-5*x/norm
-    #Ey=-1e-5*y/norm
-    if iteration>=1000:
-        Ex=0
-        Ey=5e-5*np.cos(k*x-omega*iteration)
-    else :
-        Ex=0
-        Ey=0
+    Ex=1e-5
+    Ey=0
     return(np.array([Ex,Ey]))
+
 
 if __name__ == '__main__':
     folder="Picture"
@@ -240,15 +244,16 @@ if __name__ == '__main__':
     minimalresidue=8e-6
     temperature=0.2
     
-    xmin=-1
-    ymin=-1
-    xmax=1
-    ymax=1
-    quantity=250
+    xmin=-2
+    ymin=-2
+    xmax=2
+    ymax=2
+    quantity=300
     initial_velocity="rest"
-    timemax=50000
+    z=1e-12
+    timemax=1000000
     electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_ext)
-    electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
+    electrongas.createcloudelectron(xmin, ymin, xmax, ymax, z, quantity, initial_velocity)
     print("Starting the simulation")
     electrongas.lauch(timemax)
 
