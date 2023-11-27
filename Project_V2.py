@@ -104,6 +104,10 @@ class Simulation_Electron :
         #print("internal")
         #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
         E=np.array([np.sum(Ex),np.sum(Ey)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
+        """
+         The force will be computed using distances in units of microns, which effectively means that the time
+         step will be given in units of picoseconds.
+        """
         return(E)
     
     def flexible(self):
