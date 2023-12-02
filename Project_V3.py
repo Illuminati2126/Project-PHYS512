@@ -97,7 +97,7 @@ class Simulation_Electron :
         if initialspeed=="rest":
             self.vx=np.zeros(len(self.x))
             self.vy=np.zeros(len(self.y))
-        else: #JM:Should implement random distribution (e.g. Maxxwell)
+        else: #give just a little bit of velocity to the electron. Should instead start from Max.Bolzt. distribution to be more realistic.
             self.vx=-initialspeed+random.random(len(self.x))*2*initialspeed #uniform distribution around the 0 with a range of initialspeed
             self.vy=-initialspeed+random.random(len(self.y))*2*initialspeed
 
@@ -161,8 +161,11 @@ class Simulation_Electron :
             xd=(x-self.x)
             yd=(y-self.y)
             
-            Lx=self.xmax-self.xmin
+            Lx=self.xmax-self.xmin # dimension of the 2DEG
             Ly=self.ymax-self.ymin
+            
+            # this is for taking the distance between the electron, but by passing by the other side (passing by the periodic boundary)
+            # If the distance is inferior to L/2, so inferior to the classic method, then we take that distance instead 
             index=(Lx)/2<np.abs(xd)
             xd[index]=(Lx-np.abs(xd[index]))*-(xd[index]/np.abs(xd[index]))
             index=(Ly)/2<np.abs(yd)
@@ -172,16 +175,16 @@ class Simulation_Electron :
             distance=(np.sqrt(xd**2+yd**2))
             
             index=np.nonzero(distance==0) # two particle at the same position
-            distance[index]=1 #the xd,yd,zd must be equal to 0, so they make E=0. It is only done to avoid division by 0
+            distance[index]=1 #the xd,yd,zd must be equal to 0, so they make E=0 (we just ignore the electric field in that case). It is only done to avoid division by 0
+            #we ignore it, because it is virtually impossible to really happen, the potential will be soo big that the electron will never be in the contact with the other electron. So, if it is happening it probrably some numerical error (the initial condition make them starting at the same place) and the momentum will push it away by itself. Thus, we just ignore it.
             try:
                 Ex=xd*distance**-3
                 Ey=yd*distance**-3
             except : 
+                #this imply that measure put in place to avoid division by zero have fail and thus there is now a NaN or Inf in the V, so the simulation should be stop and the bug should be found
                 print("There is a problem. Go see the InternalElectrical")
                 pass
-        #print("internal")
-        #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
-        E=np.array([np.sum(Ex),np.sum(Ey)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
+        E=np.array([np.sum(Ex),np.sum(Ey)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps)) #sum of the contribution of each electron to the electric field and multiply by the proper constants 
         return(E)
     
     def flexible(self):
@@ -230,30 +233,31 @@ class Simulation_Electron :
         ay=np.zeros(len(self.x))
         if self.ode=="Euler":
             for i in range(0,len(self.x)):
-                ax[i], ay[i] = self.External_a(self.x[i],self.y[i],self.vx[i],self.vy[i],timestep,self.iterationcount) + constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i])+self.External_E(self.x[i],self.y[i],self.iterationcount,self.timestep))
+                ax[i], ay[i] = self.External_a(self.x[i],self.y[i],self.vx[i],self.vy[i],timestep,self.iterationcount) + constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i])+self.External_E(self.x[i],self.y[i],self.iterationcount,self.timestep)) #calculated the acceleration for each one of the electrons
                     
-            deltavx=ax*self.timestep
+            deltavx=ax*self.timestep #residue for the velocity
             deltavy=ay*self.timestep
-            residuex=self.timestep*(self.vx+ax*self.timestep/2)
+            residuex=self.timestep*(self.vx+ax*self.timestep/2) # how much each the electron will move, e.g. the residue
             residuey=self.timestep*(self.vy+ay*self.timestep/2)
-            self.x=self.x+residuex
+            self.x=self.x+residuex #Change the position of each electron to their new positions
             self.y=self.y+residuey
-            self.vx=self.vx+deltavx
+            self.vx=self.vx+deltavx #Change the velocity of the electron, for their values
             self.vy=self.vy+deltavy
         elif self.ode=="Leapfrog":
             for i in range(0,len(self.x)):
-                ax[i], ay[i] = constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i])+self.External_E(self.x[i],self.y[i],self.iterationcount,self.timestep))
-            half_vx=self.vx+ax*self.timestep/2
-            residuex=half_vx*self.timestep
-            self.x=residuex+self.x
+                ax[i], ay[i] = self.External_a(self.x[i],self.y[i],self.vx[i],self.vy[i],timestep,self.iterationcount) + constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i])+self.External_E(self.x[i],self.y[i],self.iterationcount,self.timestep)) #calculated the acceleration for each one of the electrons
+            half_vx=self.vx+ax*self.timestep/2 # velocity for a half iterations
+            residuex=half_vx*self.timestep  # the change of positions of the electrons
+            self.x=residuex+self.x # Modify the position of electron for this iterations
             half_vy=self.vy+ay*self.timestep/2
             residuey=half_vy*self.timestep
             self.y=residuey+self.y
             for i in range(0,len(self.x)):
-                ax[i], ay[i] = constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i])+self.External_E(self.x[i],self.y[i],self.iterationcount,self.timestep))
-            self.vx=half_vx+ax*self.timestep/2
+                ax[i], ay[i] =self.External_a(self.x[i],self.y[i],self.vx[i],self.vy[i],timestep,self.iterationcount) + constants.e/constants.m_e*(self.InternalElectrical(self.x[i],self.y[i])+self.External_E(self.x[i],self.y[i],self.iterationcount,self.timestep)) #Calculated the acceleration for this new position after this half iterations
+            self.vx=half_vx+ax*self.timestep/2 #The new velocity after this FULL iterations
             self.vy=half_vy+ay*self.timestep/2
-        self.residuex=np.mean(np.abs(residuex)) 
+            
+        self.residuex=np.mean(np.abs(residuex)) #Average residue of the electron
         self.residuey=np.mean(np.abs(residuey))
         
     def show_electron(self,save=False):
@@ -277,16 +281,6 @@ class Simulation_Electron :
         plt.ylim(self.ymin,self.ymax) 
         plt.xlabel("X [µm]")
         plt.ylabel("Y [µm]")
-        #x=np.linspace(self.xmin,self.xmax,num=200)
-        #Ex,Ey=self.External_E(x,0,self.iterationcount,self.timestep)
-        #index=Ey<0
-        #minus=Ey[index]
-        #xminus=x[index]
-        #plt.scatter(xminus,minus,color="red")
-        #index=Ey>0 
-        #plus=Ey[index]
-        #xplus=x[index]
-        #plt.scatter(xplus, plus,color="blue")
         plt.scatter(self.x,self.y,color="black",s=5, zorder=200)
         if save==True:
             SaveFile = "Figure" + "_step_" + str(self.iterationcount) + ".png" 
@@ -316,21 +310,22 @@ class Simulation_Electron :
         plt.ylim(self.ymin,self.ymax) 
         plt.xlabel("X [µm]")
         plt.ylabel("Y [µm]")
-        shift=(self.xmax-self.xmin)/N
+        shift=(self.xmax-self.xmin)/N # we just applied a little shift to the x position, so the two steam plot are not perflectly on top of each other to make it readable
         xvec=np.linspace(self.xmin+shift,self.xmax,num=N)
         yvec=np.linspace(self.ymin,self.ymax,num=N)
         Ex=np.zeros(len(xvec))
         Ey=np.zeros(len(yvec))
         #V=np.copy(Ex)
-        X,Y= np.meshgrid(xvec,yvec)
+        X,Y= np.meshgrid(xvec,yvec) #The first meshgrid at each we evaluated the electric field
         E_internal=np.copy(X)*0
         E_ext=np.copy(E_internal)
         for i in range(0,len(xvec)):
-            Ex[i],Ey[i]=(self.InternalElectrical(xvec[i],0))
+            Ex[i],Ey[i]=(self.InternalElectrical(xvec[i],0)) #calculated the INTERNAL electric field at y=0
         for j in range(0,len(xvec)):
-            E_internal[j,:]=Ey
-        plt.streamplot(xvec,yvec,E_internal*0,E_internal,density=0.5, zorder=25,color="blue")# vector field of the plot
+            E_internal[j,:]=Ey #project it from 1D to 2D to make the plot more readable
+        plt.streamplot(xvec,yvec,E_internal*0,E_internal,density=0.5, zorder=25,color="blue")# create the vector field of the internal electric field only in y direction
         
+        #repeat the previous step for the external electric field 
         xvec=np.linspace(self.xmin,self.xmax-shift,num=N)
         yvec=np.linspace(self.ymin,self.ymax,num=N)
         
@@ -366,25 +361,24 @@ class Simulation_Electron :
 
         """
         
-    
+        #same logic as calculating the internal electric field
         V=0
         with np.errstate(invalid='raise'): # just to catch division by 0 and avoid inf
-            #direct radius without any funky boundary
-            xd=(x-self.x)
-            yd=(y-self.y)
+            xd=(x-self.x) # distance between x and the x positon of the electrons
+            yd=(y-self.y) # distance between y and the y positon of the electrons
             
-            distance=(np.sqrt(xd**2+yd**2))
+            distance=(np.sqrt(xd**2+yd**2)) #distance between the position and the electrons
             
             index=np.nonzero(distance==0) # two particle at the same position
             distance[index]=1e99 #if distance is zero, then we ignore that contribution to the potential
+            #we ignore it, because it is virtually impossible to really happen, the potential will be soo big that the electron will never be in the contact with the other electron. So, if it is happening it probrably some numerical error (the initial condition make them starting at the same place) and the momentum will push it away by itself. Thus, we just ignore it.
             try:
                 V=distance**-2
             except : 
-                print("There is a problem. Go see the InternalElectrical")
+                #this imply that measure put in place to avoid division by zero have fail and thus there is now a NaN or Inf in the V, so the simulation should be stop and the bug should be found
+                print("There is a problem. Go see the InternalPotential")
                 pass
-        #print("internal")
-        #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
-        V=np.sum(V)*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
+        V=np.sum(V)*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps)) #add all the individual potential of each electron and multiply by the proper constants 
         return(-V)    
 
     def Electrical_Potential(self,save=False,show=False):
@@ -406,23 +400,22 @@ class Simulation_Electron :
         xvec=np.linspace(self.xmin,self.xmax,num=5*len(self.x))
         yvec=np.linspace(self.ymin,self.ymax,num=5*len(self.x))
         V=np.zeros((len(yvec),len(yvec)))
-        X,Y= np.meshgrid(xvec,yvec)
+        X,Y= np.meshgrid(xvec,yvec) #meshgrid where we calculted the potential inside the 2DEG due to the electron inside the 2DEG (ignore the potential due to the external electric field)
         for i in range(0,len(X)):
             for j in range(0,len(Y)):
-                V[i,j]= self.Internal_Potential(X[i,j],Y[i,j])
+                V[i,j]= self.Internal_Potential(X[i,j],Y[i,j]) #evaluate the potential on the meshgrid
         
-        if show:
+        if show: #show the potential field calculated
             plt.clf()
             plt.xlim(self.xmin,self.xmax)
             plt.ylim(self.ymin,self.ymax) 
             plt.xlabel("X [µm]")
             plt.ylabel("Y [µm]")
             
-            #test_V=np.abs(V)
             plt.pcolor(xvec,yvec,V)
             
             plt.colorbar(orientation="horizontal",label="Electric potential (UNIT?)", norm=colors.LogNorm())        
-            #plt.scatter(self.x,self.y,color="red",s=5, zorder=200)
+            plt.scatter(self.x,self.y,color="red",s=5, zorder=200)
 
             if save==True:
                 SaveFile = "Electrical Field"+ ".png" 
@@ -430,17 +423,7 @@ class Simulation_Electron :
                 plt.savefig(plotname)
             plt.show()
         return(V)
-        """
-    def thermal_noise(self):
-        x=(self.vx**2+self.vy**2)*self.variance*1e-12
-        #create random matrix to choose if have a random kick
-        random_kick=(x<0.50*)
-        random_magnitude=self.random.MaxwellBoltzmann(len(general_speed))*1e6 # random magnitude of the kick following boltzmann distribution, the multiplication with 1e6 is to switch the unit to um
-        random_orientation=np.random.uniform(0,2*np.pi,len(self.vx))
-        self.vx[random_kick]=self.vx[random_kick]+random_magnitude[random_kick]*np.cos(random_orientation[random_kick])
-        self.vy[random_kick]=self.vy[random_kick]+random_magnitude[random_kick]*np.sin(random_orientation[random_kick])
-        """
-
+    
     def lauch(self,maxtime,save=False, animation=True,animation_timing=None,phase_lag=False):
         """
         Lauch the molecular dynamic simulation of electron inside the 2DEG.
@@ -465,26 +448,26 @@ class Simulation_Electron :
 
         """
         while self.iterationcount<maxtime :
-            self.iteration()
-            self.boundarycondition()
-            self.diffusion()
-            self.flexible()
+            self.iteration() #Let the electron evole in time
+            self.boundarycondition() #force the boundary conditon on the electron
+            self.diffusion() #Diffusion of the momentum into the 2DEG (scattering the the phonon/impurity)
+            self.flexible() #Modifiy the min and max of the position if a electron has pass over those limits. Mostly used for bug catching purpose.
             if animation==True:
-                self.show_electron(save=save)
+                self.show_electron(save=save) #Animation of the electron moving
             elif animation=="Timing":
                 if self.iterationcount%animation_timing==0:
-                    self.show_electron(save=save)
+                    self.show_electron(save=save) # Still animation, but only at after some quantity of iterations, so not at each iteration
             
             if self.minimalresidue>self.residuex and self.minimalresidue>self.residuey and self.iterationcount>100:
                 print("We are now into a steady situation.")
-                break
+                break #Test if we are in a steady state as definied with the minimal residue and stop the simulation if we are in steady state
             if (self.iterationcount%100)==0:
-                print("Iteration:"+str(self.iterationcount))
+                print("Iteration:"+str(self.iterationcount)) #just a basic counter to ensure that the simulation is not stuck somewhere
                 #print(np.max((self.residuex)))
                 #print(np.max(self.residuey))
             if phase_lag:
                 if self.iterationcount>=1000:
-                    self.show_Electrical_Field()
+                    self.show_Electrical_Field() #Show to show part of the electric field, used to show phase lag 
 
     def lattice(self,axis):
         """
