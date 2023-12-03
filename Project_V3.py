@@ -310,31 +310,12 @@ class Simulation_Electron :
         plt.ylim(self.ymin,self.ymax) 
         plt.xlabel("X [µm]")
         plt.ylabel("Y [µm]")
-        shift=(self.xmax-self.xmin)/N # we just applied a little shift to the x position, so the two steam plot are not perflectly on top of each other to make it readable
-        xvec=np.linspace(self.xmin+shift,self.xmax,num=N)
-        yvec=np.linspace(self.ymin,self.ymax,num=N)
-        Ex=np.zeros(len(xvec))
-        Ey=np.zeros(len(yvec))
-        #V=np.copy(Ex)
-        X,Y= np.meshgrid(xvec,yvec) #The first meshgrid at each we evaluated the electric field
-        E_internal=np.copy(X)*0
-        E_ext=np.copy(E_internal)
-        for i in range(0,len(xvec)):
-            Ex[i],Ey[i]=(self.InternalElectrical(xvec[i],0)) #calculated the INTERNAL electric field at y=0
-        for j in range(0,len(xvec)):
-            E_internal[j,:]=Ey #project it from 1D to 2D to make the plot more readable
-        plt.streamplot(xvec,yvec,E_internal*0,E_internal,density=0.5, zorder=25,color="blue")# create the vector field of the internal electric field only in y direction
-        
-        #repeat the previous step for the external electric field 
-        xvec=np.linspace(self.xmin,self.xmax-shift,num=N)
-        yvec=np.linspace(self.ymin,self.ymax,num=N)
-        
-        for i in range(0,len(xvec)):
-            Ex[i],Ey[i]=self.External_E(xvec[i],0,self.iterationcount,self.timestep)
-        for j in range(0,len(xvec)):
-            E_ext[j,:]=Ey
-        plt.streamplot(xvec,yvec,E_ext*0,E_ext,density=0.5, zorder=25,color="red")# vector field of the plot        
-        
+        xvec=np.linspace(self.xmin,self.xmax,num=N)
+        other,E=self.External_E(xvec,0,self.iterationcount,self.timestep)
+        plus=E>0
+        minus=E<0
+        plt.scatter(xvec[plus],0*xvec[plus],color="blue")
+        plt.scatter(xvec[minus],0*xvec[minus],color="red")
         plt.scatter(self.x,self.y,s=5,color="black")
         
         if save==True:
@@ -498,24 +479,18 @@ class Simulation_Electron :
 
 
 
-def numerical_vector_int(dx,dy,Ex,Ey,i,j):
-    part_x=dx*(np.sum(Ex[i,:j]))+dy*(np.sum(Ex[:i,j]))
-    part_y=dx*(np.sum(Ey[i,:j]))+dy*(np.sum(Ey[:i,j]))
-    return(part_x+part_y)
-
-
 def E_ext(x,y,iteration,timestep):
     omega=np.pi/100
     k=np.pi/2
     norm=np.sqrt(x**2+y**2)
-    Ex=-5e-5*x/norm/z**2
-    Ey=-5e-5*y/norm/z**2
-    #if iteration>=1000:
-    #    Ex=0
-    #    Ey=5e-5*np.cos(k*x-omega*iteration)
-    #else :
-    #    Ex=0
-    #    Ey=0
+    #Ex=-5e-5*x/norm/z**2
+    #Ey=-5e-5*y/norm/z**2
+    if iteration>=1000:
+        Ex=0
+        Ey=5e-5*np.cos(k*x-omega*iteration)
+    else :
+        Ex=0
+        Ey=0
     #if iteration<750:  
     #     Ex=0 
     #else:
@@ -557,14 +532,14 @@ if __name__ == '__main__':
     relativeeps=1
     #timestep=7.5e-6
     timestep=1e-5
-    minimalresidue=2e-5
+    minimalresidue=0.1e-5
     #minimalresidue=0
     temperature=0.2
     xmin=-1
     ymin=-1
     xmax=1
     ymax=1
-    quantity=50
+    quantity=250
     initial_velocity="rest"
     timemax=10000
     z=1
@@ -573,11 +548,16 @@ if __name__ == '__main__':
     #print("Starting the simulation")
     #electrongas.lauch(timemax,animation=False)
     #C=electrongas.Electrical_Potential(show=True)
+    folder="i"
+    electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_ext,a_ext)
+    electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
+    electrongas.lauch(5000,animation=False,phase_lag=True)
     
-
+    
+    """
     folder="SweepZ"
     V=[]
-    z_list=np.linspace(1,4.5,num=25)
+    z_list=np.linspace(1,4.5,num=5)
     electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_ext,a_ext)
     for i in z_list:
         z=i
@@ -622,7 +602,7 @@ if __name__ == '__main__':
     print("Start testing")
     C=test(1.93, V_Estimation, electrongas)
     
-
+    """
     
     
     
