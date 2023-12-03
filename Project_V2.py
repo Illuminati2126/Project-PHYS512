@@ -1,6 +1,9 @@
 import numpy as np
 from numpy import random
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import matplotlib.animation as animation
+from copy import deepcopy
 from scipy import constants
 from matplotlib.colors import LogNorm
 from multiprocessing import Process
@@ -101,6 +104,10 @@ class Simulation_Electron :
         #print("internal")
         #print(np.array([np.sum(Ex),np.sum(Ey),np.sum(Ez)]))
         E=np.array([np.sum(Ex),np.sum(Ey)])*self.charge/(4*np.pi*constants.epsilon_0*(self.relativeeps))
+        """
+         The force will be computed using distances in units of microns, which effectively means that the time
+         step will be given in units of picoseconds.
+        """
         return(E)
     
     def flexible(self):
@@ -118,7 +125,7 @@ class Simulation_Electron :
         self.vx=self.vx*np.exp(-self.timestep/self.mean_free_path)
         self.vy=self.vy*np.exp(-self.timestep/self.mean_free_path)
     
-    def iteration(self):
+    def iteration(self, makegif=False):
         self.iterationcount=self.iterationcount + 1
         ax=np.zeros(len(self.x))
         ay=np.zeros(len(self.x))
@@ -135,7 +142,10 @@ class Simulation_Electron :
         self.vy=self.vy+deltavy
         self.residuex=np.mean(np.abs(residuex)) 
         self.residuey=np.mean(np.abs(residuey))
-        
+        if makegif:
+            self.evolution_frames.append( [deepcopy(self.x), deepcopy(self.y)] )
+
+
     def show_electron(self,save):
         plt.pause(0.001)
         plt.clf()
@@ -153,8 +163,6 @@ class Simulation_Electron :
         plus=Ey[index]
         xplus=x[index]
         plt.scatter(xplus, plus,color="blue")
-        
-        
         plt.scatter(self.x,self.y,color="black",s=5, zorder=200)
         if save==True:
             SaveFile = "Figure" + "_step_" + str(self.iterationcount) + ".png" 
@@ -162,6 +170,25 @@ class Simulation_Electron :
             plt.savefig(plotname)
         plt.show()
         #plt.close()
+
+    def animate(self, frame_nb):
+        frame = self.evolution_frames[frame_nb]
+        xplot, yplot = frame
+        self.ax.clear()
+        self.ax.set_xlabel("X [µm]")
+        self.ax.set_ylabel("Y [µm]")
+        x=np.linspace(self.xmin,self.xmax,num=200)
+        Ex,Ey=self.External_E(x,0,self.iterationcount,self.timestep)
+        index=Ey<0
+        minus=Ey[index]
+        xminus=x[index]
+        # self.ax.scatter(xminus,minus,color="red")
+        index=Ey>0 
+        plus=Ey[index]
+        xplus=x[index]
+        # self.ax.scatter(xplus, plus,color="blue")
+        self.ax.scatter(xplot, yplot,color="black",s=5, zorder=200)
+
     """
     def show_Electrical_Field(self,save):
         plt.clf()
@@ -191,19 +218,38 @@ class Simulation_Electron :
         plt.close()
     """
 
-    def lauch(self,maxtime):
-        self.show_electron(True)
+    def lauch(self,maxtime, savepics=True, display=True, makegif=False):
+        self.show_electron(savepics)
+        if makegif:
+            self.evolution_frames = []
         while self.iterationcount<maxtime :
-            self.iteration()
+            self.iteration(makegif)
             self.boundarycondition()
             self.diffusion()
             self.flexible()
-            self.show_electron(False)
+            if display:
+                self.show_electron(False)
             if self.minimalresidue>self.residuex and self.minimalresidue>self.residuey and self.iterationcount>100:
                 print("We are now into a steady situation.")
                 break
             if (self.iterationcount%100)==0:
                 print("Iteration:"+str(self.iterationcount))
+        
+        if makegif:
+            print("Compiling animation")
+            abspath = os.path.abspath(__file__)
+            dname = os.path.dirname(abspath)
+            os.chdir(dname)
+            mpl.rcParams['savefig.facecolor'] = 'white'
+            fig, ax = plt.subplots()
+            self.fig = fig
+            self.ax = ax
+            self.ax.set_xlim(self.xmin,self.xmax)
+            self.ax.set_ylim(self.ymin,self.ymax)
+            anime = animation.FuncAnimation(fig, self.animate, frames=len(self.evolution_frames), interval=1)
+            anime.save("Electron dynamics.gif", writer='pillow')
+            print("Animation saved successfully")
+
 
 """
 To do :
@@ -246,9 +292,9 @@ if __name__ == '__main__':
     ymax=1
     quantity=250
     initial_velocity="rest"
-    timemax=50000
+    timemax=5000
     electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_ext)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
     print("Starting the simulation")
-    electrongas.lauch(timemax)
+    electrongas.lauch(timemax, savepics=False, display=False, makegif=True)
 
