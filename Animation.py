@@ -4,6 +4,7 @@ import matplotlib.animation as animation
 from matplotlib import pyplot as plt
 import numpy as np
 
+
 with open("AnimationData.pickle", 'rb') as handle:
     lists = load(handle)
 parameters, timeframes = lists
@@ -17,14 +18,16 @@ and valE give the values of external E field where sampled
 xmin, xmax, ymin, ymax, xposE = parameters
 mpl.rcParams['savefig.facecolor'] = 'white'
 fig, ax = plt.subplots()
-ax.set_xlim(xmin-0.2,xmax+0.2)
-ax.set_ylim(ymin-0.2,ymax+0.2)
+offset = 0.1
+
 
 def animate(frame_nb):
     frame = timeframes[frame_nb]
     xpos, ypos, valE = frame
     valE = np.array(valE)
     ax.clear()
+    ax.set_xlim(xmin-offset,xmax+offset)
+    ax.set_ylim(ymin-offset,ymax+offset)
     ax.set_xlabel("X [µm]")
     ax.set_ylabel("Y [µm]")
     ax.scatter(xpos, ypos,color="black",s=5, zorder=200)
@@ -34,6 +37,7 @@ def animate(frame_nb):
         minus = valE < 0
         plt.scatter(xposE[plus],0*xposE[plus],color="blue")
         plt.scatter(xposE[minus],0*xposE[minus],color="red")
+
 
 print("Starting animation compilation")
 anime = animation.FuncAnimation(fig, animate, frames=len(timeframes), interval=1)
