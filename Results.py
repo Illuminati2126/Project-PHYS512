@@ -13,10 +13,10 @@ from scipy.stats import maxwell
 from scipy.interpolate import RegularGridInterpolator
 
 
-import Project_V3 as Sim
+import Project_VF as Sim
 
 #the different case of external electric field or 
-def E_radial(x,y,timestep,iteration_count):
+def E_radial(x,y,iteration_count,timestep):
     norm=np.sqrt(x**2+y**2+z**2)
     Ex=-5e-5*x/norm
     Ey=-5e-5*y/norm
@@ -25,29 +25,32 @@ def E_radial(x,y,timestep,iteration_count):
 def a_zero(x,y,vx,vy,timestep,iteration_count):
     return(0)
 
-def B(x,y,vx,vy,timestep,iteration_count):
+def B(x,y,vx,vy,iteration_count,timestep):
     B=5e-8
     F_x=vy*B
     F_y=vx*B
     return(constants.e/constants.m_e*np.array([F_x,F_y]))
 
-def E_0(x,y,timestep,iteration_count):
+def E_0(x,y,iteration_count,timestep):
     return(np.array([0,0]))
 
-def E_x(x,y,timestep,iteration_count):
+def E_x(x,y,iteration_count,timestep):
     Ex=5e-6
     Ey=0 
     return(np.array([Ex,Ey]))
 
-def E_time(x,y,timestep,iteration_count):
+def E_time(x,y,iteration_count,timestep):
     omega=np.pi/100
     k=np.pi/2
+    norm=np.sqrt(x**2+y**2)
     if iteration_count>=1000:
         Ex=0
         Ey=5e-5*np.cos(k*x-omega*iteration_count)
     else :
         Ex=0
         Ey=0
+    E=[Ex,Ey]
+    return(np.array(E))
     return(np.array([Ex,Ey]))
     
 #create the global variable of the simulation
@@ -70,8 +73,8 @@ def general_variables():
     quantity=250
     global timemax
     timemax=50000
-    global mean_free_path
-    mean_free_path=1e-6
+    global mean_free_time
+    mean_free_time=1e-6
     global temperature
     temperature=0.2
     global initial_velocity
@@ -89,7 +92,7 @@ def sweep_z(zmax,N): #zmax 4.5, N=100
     V=[]
     global z
     z_list=np.linspace(0.001,zmax,num=N)
-    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_radial,a_zero)
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_radial,a_zero)
     for i in z_list:
         z=i
         electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
@@ -102,6 +105,8 @@ def sweep_z(zmax,N): #zmax 4.5, N=100
     points=(z_list,x,y)
     print("Start spline")
     V_Estimation=RegularGridInterpolator(points,np.array(V),method="cubic")
+    minimalresidue=1e-5
+    quantity=250
     return(V_Estimation)
 
 def Spline_z(z,V_Estimation):
@@ -120,43 +125,63 @@ def Spline_z(z,V_Estimation):
     
 def linear_mouvement():
     folder="Linear_Mouvement"
-    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_x,a_zero)
+    timestep=1e-4
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_x,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
     electrongas.lauch(timemax)
-    
+
+def accumulation():
+    folder="Linear_Mouvement"
+    timestep=1e-4
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_x,a_zero,boundary="momentum conserve")
+    electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
+    electrongas.lauch(timemax)
+
 def radial():
+    global z
+    z=0
     folder="Radial"
-    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_radial,a_zero)
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_radial,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
     electrongas.lauch(timemax)
 
 def Nothing():
     folder="Nothing"
-    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_0,a_zero)
+    timestep=1e-4
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_0,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
     electrongas.lauch(timemax)
+    timestep=1e-5
 
 def Phase_Lag():
+    mean_free_time=1e-3
+    minimalresidue=0.1e-5
+    timestep=5e-6
     folder="Phase_Lag"
-    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_time,a_zero)
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_time,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(timemax,phase_lag=True)
+    electrongas.lauch(timemax,animation=False,phase_lag=True)
+    mean_free_time=1e-6
+    timestep=1e-5
+    minimalresidue=1e-5
+
+
+
     
     
 if __name__ == '__main__':
+    """
+    Just take a case and run it.
+    The only one that need more preparation is the sweep in z direction which is in comment below.
+    """
+    
     general_variables()
-    Phase_Lag()
+    
+    
     
     """
-    folder="test"
-    global z
-    z=1
-    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_radial,a_zero)
-    electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    print("Starting new run")
-    electrongas.lauch(10000, animation=False)
-    electrongas.Electrical_Potential()
-    #you choose which part you want     
+    V=sweep_z(4.5,10)
+    Spline_z(2,V)
     """
     
 
