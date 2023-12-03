@@ -6,6 +6,7 @@ import os
 from scipy.stats import maxwell
 from scipy.interpolate import RegularGridInterpolator
 import matplotlib.colors as colors
+import pickle
 
 
 
@@ -288,6 +289,11 @@ class Simulation_Electron :
             plt.savefig(plotname)
         plt.show()
         
+        if self.savegif:
+            xvec=np.linspace(self.xmin,self.xmax,num=100)
+            other,E=self.External_E(xvec,0,self.iterationcount,self.timestep)
+            self.timeframes.append([self.x, self.y, E])
+            
     def show_Electrical_Field(self,save=False):
         """
         Calculated the electrical field at y=0 for the internal electrical field and the external electrical field and generate a vector field plot of the Ex.
@@ -324,6 +330,10 @@ class Simulation_Electron :
             plt.savefig(plotname)
         plt.show()
         plt.pause(0.001)
+        
+        if self.savegif:
+            self.timeframes.append([self.x, self.y, E])
+
 
     def Internal_Potential(self,x,y): 
         """
@@ -405,7 +415,7 @@ class Simulation_Electron :
             plt.show()
         return(V)
     
-    def lauch(self,maxtime,save=False, animation=True,animation_timing=None,phase_lag=False):
+    def lauch(self,maxtime,save=False, animation=True,animation_timing=None,phase_lag=False, savegif=True):
         """
         Lauch the molecular dynamic simulation of electron inside the 2DEG.
         Will stop when either we are in a steady state as definied by the minimal residue or when we reach the maximal number of iterations.
@@ -422,12 +432,21 @@ class Simulation_Electron :
             At each frequency do you want the see the animation. The default is to see it at each iteration.
         phase_lag : Bool, optional
             Do you want to look at phase lag with your external electric field and the 2DEG. The default is False.
+        savegif: Bool, optional
+            If True, save (a part of) the simulation as a gif. False by default
 
         Returns
         -------
         None.
 
         """
+        self.savegif = savegif
+        if savegif:
+            xvec=np.linspace(self.xmin,self.xmax,num=100)
+            parameters = [self.xmin, self.xmax, self.ymin, self.ymax, xvec]
+            self.timeframes = []
+            
+            
         while self.iterationcount<maxtime :
             self.iteration() #Let the electron evole in time
             self.boundarycondition() #force the boundary conditon on the electron
@@ -446,10 +465,27 @@ class Simulation_Electron :
                 print("Iteration:"+str(self.iterationcount)) #just a basic counter to ensure that the simulation is not stuck somewhere
                 #print(np.max((self.residuex)))
                 #print(np.max(self.residuey))
-            if phase_lag:
-                if self.iterationcount>=1000:
+            if phase_lag and not (animation or animation=='Timing'):
+                start_iter = 1000
+                if self.iterationcount>=start_iter:
                     self.show_Electrical_Field() #Show to show part of the electric field, used to show phase lag 
-
+        
+        if savegif:
+            print("Full timeframe:", len(self.timeframes))
+            start = int(input("Iter. number to start making gif:\n"))
+            end = int(input("Iter. number to end making gif:\n"))
+            if phase_lag and not (animation or animation=='Timing'):
+                start -= start_iter
+                end -= start_iter
+            cut_timeframes = self.timeframes[start:end]
+            print("Cut timeframe:",len(cut_timeframes))
+            lists = [parameters, cut_timeframes]
+            with open('AnimationData.pickle', 'wb') as handle:
+                pickle.dump(lists, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Importing Animation")
+            import Animation
+            
+            
     def lattice(self,axis):
         """
         Show a histogram of the position of the electron for the axis chosen.
@@ -481,7 +517,7 @@ class Simulation_Electron :
 
 def E_ext(x,y,iteration,timestep):
     omega=np.pi/100
-    k=np.pi/2
+    k=np.pi
     norm=np.sqrt(x**2+y**2)
     #Ex=-5e-5*x/norm/z**2
     #Ey=-5e-5*y/norm/z**2
@@ -498,7 +534,7 @@ def E_ext(x,y,iteration,timestep):
     #Ey=-1e-3*y**5/norm
     E=[Ex,Ey]
     
-    return(np.array(E))
+    return(np.array(E, dtype=object))
     #return(np.array([0,0]))
 
 def a_ext(x,y,vx,vy,timestep,iterationcount):
@@ -551,7 +587,7 @@ if __name__ == '__main__':
     folder="i"
     electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_ext,a_ext)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(5000,animation=False,phase_lag=True)
+    electrongas.lauch(1200,animation=False,phase_lag=True)
     
     
     """
