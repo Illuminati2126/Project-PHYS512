@@ -18,7 +18,7 @@ and valE give the values of external E field where sampled
 xmin, xmax, ymin, ymax, xposE = parameters
 mpl.rcParams['savefig.facecolor'] = 'white'
 fig, ax = plt.subplots()
-offset = 0.1
+offset = 0
 
 
 def animate(frame_nb):
