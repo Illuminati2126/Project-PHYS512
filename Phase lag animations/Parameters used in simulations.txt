@@ -1,0 +1,10 @@
+1. dt=5e-6, tau=1e-4, omega=1e3
+
+2. dt=5e-6, tau=1e-3, omega=3e4
+
+3. dt=5e-6, tau=2e-3, omega=1.5e4
+
+4. dt=5e-6, tau=1e-4, omega=1e3
+
+5. dt=5e-6, tau=1e-3, omega=3e4
+
