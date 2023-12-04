@@ -516,14 +516,14 @@ class Simulation_Electron :
 
 
 def E_ext(x,y,iteration,timestep):
-    omega=np.pi/100
-    k=np.pi
+    omega = 1e3
+    k= np.pi
     norm=np.sqrt(x**2+y**2)
     #Ex=-5e-5*x/norm/z**2
     #Ey=-5e-5*y/norm/z**2
     if iteration>=1000:
         Ex=0
-        Ey=5e-5*np.cos(k*x-omega*iteration)
+        Ey=1e-4*np.cos(k*x-omega*iteration*timestep)
     else :
         Ex=0
         Ey=0
@@ -564,7 +564,7 @@ if __name__ == '__main__':
     global z
     folder="Picture"
     density2deg=1e3
-    mean_free_path=1e-3
+    mean_free_time=1e-4
     relativeeps=1
     #timestep=7.5e-6
     timestep=5e-6
@@ -585,9 +585,9 @@ if __name__ == '__main__':
     #electrongas.lauch(timemax,animation=False)
     #C=electrongas.Electrical_Potential(show=True)
     folder="i"
-    electrongas=Simulation_Electron(folder,density2deg,mean_free_path,relativeeps,timestep,minimalresidue,temperature,E_ext,a_ext)
+    electrongas=Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_ext,a_ext)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(1200,animation=False,phase_lag=True)
+    electrongas.lauch(1300,animation=False,phase_lag=True)
     
     
     """
