@@ -433,7 +433,7 @@ class Simulation_Electron :
         phase_lag : Bool, optional
             Do you want to look at phase lag with your external electric field and the 2DEG. The default is False.
         savegif: Bool, optional
-            If True, save (a part of) the simulation as a gif. False by default
+            If True, save (a part of) the simulation as a gif. True by default
 
         Returns
         -------
