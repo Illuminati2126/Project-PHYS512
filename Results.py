@@ -60,7 +60,7 @@ def general_variables():
     global relativeeps
     relativeeps=1
     global minimalresidue
-    minimalresidue=1e-5
+    minimalresidue=7.5e-6
     global xmin
     xmin=-1
     global ymin
@@ -72,20 +72,22 @@ def general_variables():
     global quantity
     quantity=250
     global timemax
-    timemax=50000
+    timemax=25000
     global mean_free_time
-    mean_free_time=1e-6
+    mean_free_time=5e-4
     global temperature
     temperature=0.2
     global initial_velocity
     initial_velocity="rest"
     global timestep
-    timestep=1e-5
+    timestep=5e-6
     
     
 
 #The different case/testing/results
-def sweep_z(zmax,N): #zmax 4.5, N=100
+def sweep_z(zmax,N):
+    mean_free_time=1e-3 # we increase it, to speed up the process (we can bigger timestep)
+    timestep=1e-5
     minimalresidue=2e-5
     quantity=50
     folder="SweepZ"
@@ -105,8 +107,12 @@ def sweep_z(zmax,N): #zmax 4.5, N=100
     points=(z_list,x,y)
     print("Start spline")
     V_Estimation=RegularGridInterpolator(points,np.array(V),method="cubic")
+    
     minimalresidue=1e-5
     quantity=250
+    timestep=1e-6
+    mean_free_time=1e-3
+
     return(V_Estimation)
 
 def Spline_z(z,V_Estimation):
@@ -125,19 +131,18 @@ def Spline_z(z,V_Estimation):
     
 def linear_mouvement():
     folder="Linear_Mouvement"
-    timestep=1e-4
     electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_x,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
     electrongas.lauch(timemax)
 
 def accumulation():
     folder="Linear_Mouvement"
-    timestep=1e-4
     electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_x,a_zero,boundary="momentum conserve")
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
     electrongas.lauch(timemax)
 
 def radial():
+    timestep=1e-6
     global z
     z=0
     folder="Radial"
@@ -146,12 +151,14 @@ def radial():
     electrongas.lauch(timemax)
 
 def Nothing():
+    quantity=400
+    minimalresidue=1e-6
     folder="Nothing"
-    timestep=1e-4
     electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_0,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(timemax)
-    timestep=1e-5
+    electrongas.lauch(timemax,animation="Timing",animation_timing=100)
+    return(electrongas)
+
 
 def Phase_Lag():
     mean_free_time=1e-3
@@ -160,16 +167,25 @@ def Phase_Lag():
     folder="Phase_Lag"
     electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_time,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(timemax,animation=False,phase_lag=True)
+    electrongas.lauch(3000,animation=False,phase_lag=True)
     mean_free_time=1e-6
     timestep=1e-5
     minimalresidue=1e-5
 
 
+def leapfrog():
+    timestep=5e-5
+    quantity=400
+    minimalresidue=1e-6
+    folder="Leapfrog"
+    electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_0,a_zero,ode="Leapfrog")
+    electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
+    electrongas.lauch(timemax,animation="Timing",animation_timing=100)
+
 
     
-    
 if __name__ == '__main__':
+    
     """
     Just take a case and run it.
     The only one that need more preparation is the sweep in z direction which is in comment below.
@@ -177,11 +193,9 @@ if __name__ == '__main__':
     
     general_variables()
     
-    
-    
     """
-    V=sweep_z(4.5,10)
-    Spline_z(2,V)
+    V=sweep_z(5,50)
+    #Spline_z(2,V) #replace 2 for any z value that you want
     """
     
 
