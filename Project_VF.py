@@ -587,7 +587,7 @@ if __name__ == '__main__':
     folder="i"
     electrongas=Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_ext,a_ext)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(1300,animation=False,phase_lag=True)
+    electrongas.lauch(400,animation=False,phase_lag=True)
     
     
     """

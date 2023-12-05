@@ -133,7 +133,7 @@ def linear_mouvement():
     folder="Linear_Mouvement"
     electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_x,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(timemax)
+    electrongas.lauch(300)
 
 def accumulation():
     folder="Linear_Mouvement"
@@ -192,6 +192,7 @@ if __name__ == '__main__':
     """
     
     general_variables()
+    linear_mouvement()
     
     """
     V=sweep_z(5,50)
