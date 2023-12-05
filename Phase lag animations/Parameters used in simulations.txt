@@ -8,3 +8,4 @@
 
 5. dt=5e-6, tau=1e-3, omega=3e4
 
+Note that the amplitude of the external driving field is tuned in each case for illustrative convenience.
