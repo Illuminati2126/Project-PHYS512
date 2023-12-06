@@ -40,12 +40,12 @@ def E_x(x,y,iteration_count,timestep):
     return(np.array([Ex,Ey]))
 
 def E_time(x,y,iteration_count,timestep):
-    omega=np.pi/100
-    k=np.pi/2
+    omega=3e4
+    k=np.pi
     norm=np.sqrt(x**2+y**2)
     if iteration_count>=1000:
         Ex=0
-        Ey=5e-5*np.cos(k*x-omega*iteration_count)
+        Ey=5e-4*np.cos(k*x-omega*iteration_count*timestep)
     else :
         Ex=0
         Ey=0
@@ -167,7 +167,7 @@ def Phase_Lag():
     folder="Phase_Lag"
     electrongas=Sim.Simulation_Electron(folder,density2deg,mean_free_time,relativeeps,timestep,minimalresidue,temperature,E_time,a_zero)
     electrongas.createcloudelectron(xmin, ymin, xmax, ymax, quantity, initial_velocity)
-    electrongas.lauch(3000,animation=False,phase_lag=True)
+    electrongas.lauch(3000,animation=False,phase_lag=True,phase_lagV2=True)
     mean_free_time=1e-6
     timestep=1e-5
     minimalresidue=1e-5
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     """
     
     general_variables()
-    linear_mouvement()
+    Phase_Lag()
     
     """
     V=sweep_z(5,50)
