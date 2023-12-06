@@ -1,11 +1,11 @@
-1. dt=5e-6, tau=1e-4, omega=1e3
+1. dt=5e-6, tau=1e-4, omega=1e3 (Figure 4 in report)
 
-2. dt=5e-6, tau=1e-3, omega=3e4
+2. dt=5e-6, tau=1e-3, omega=3e4 (Figure 5 in report)
 
-3. dt=5e-6, tau=2e-3, omega=1.5e4
+3. dt=5e-6, tau=2e-3, omega=1.5e4 (changing omega, tau such that omega*tau is unchanged)
 
-4. dt=5e-6, tau=1e-4, omega=1e3
+4. dt=5e-6, tau=1e-4, omega=1e3 (Same as 1., but with 5x density)
 
-5. dt=5e-6, tau=1e-3, omega=3e4
+5. dt=5e-6, tau=1e-3, omega=3e4 (Same as 2, but with 5x density)
 
 Note that the amplitude of the external driving field is tuned in each case for illustrative convenience.
