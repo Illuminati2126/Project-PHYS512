@@ -325,13 +325,13 @@ class Simulation_Electron :
             Ey=np.zeros(len(yvec))
             #V=np.copy(Ex)
             X,Y= np.meshgrid(xvec,yvec)
-            E_internal=np.copy(X)*0
-            E_ext=np.copy(E_internal)
-            for i in range(0,len(xvec)):
-                Ex[i],Ey[i]=(self.InternalElectrical(xvec[i],0))
-            for j in range(0,len(xvec)):
-                E_internal[j,:]=Ey
-            plt.streamplot(xvec,yvec,E_internal*0,E_internal,density=0.5, zorder=25,color="blue")# vector field of the plot
+            E_ext=np.copy(X)*0
+            
+            norm=np.sqrt(self.vx**2+self.vy**2)
+            
+            for i in range(0,len(self.x)):
+                plt.arrow(self.x[i], self.y[i], 0.05*self.vx[i]/norm[i],0.05*self.vy[i]/norm[i])
+            
             xvec=np.linspace(self.xmin,self.xmax-shift,num=N)
             yvec=np.linspace(self.ymin,self.ymax,num=N)
             for i in range(0,len(xvec)):
