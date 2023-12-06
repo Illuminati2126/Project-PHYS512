@@ -294,11 +294,12 @@ class Simulation_Electron :
             other,E=self.External_E(xvec,0,self.iterationcount,self.timestep)
             self.timeframes.append([self.x, self.y, E])
             
-    def show_Electrical_Field(self,save=False):
+    def show_Electrical_Field(self,save=False,second_mode=False):
         """
         Calculated the electrical field at y=0 for the internal electrical field and the external electrical field and generate a vector field plot of the Ex.
         It is used to show the phased lag between, the internal and external electrical field. 
         Is made to be on the form of an animation.
+        Second mode is another method to visual phase lag.
         
         Parameters
         ----------
@@ -310,19 +311,59 @@ class Simulation_Electron :
         None.
 
         """
-        N=100
-        plt.clf()
-        plt.xlim(self.xmin,self.xmax)
-        plt.ylim(self.ymin,self.ymax) 
-        plt.xlabel("X [µm]")
-        plt.ylabel("Y [µm]")
-        xvec=np.linspace(self.xmin,self.xmax,num=N)
-        other,E=self.External_E(xvec,0,self.iterationcount,self.timestep)
-        plus=E>0
-        minus=E<0
-        plt.scatter(xvec[plus],0*xvec[plus],color="blue")
-        plt.scatter(xvec[minus],0*xvec[minus],color="red")
-        plt.scatter(self.x,self.y,s=5,color="black")
+        if second_mode:
+            N=100
+            plt.clf()
+            plt.xlim(self.xmin,self.xmax)
+            plt.ylim(self.ymin,self.ymax) 
+            plt.xlabel("X [µm]")
+            plt.ylabel("Y [µm]")
+            shift=(self.xmax-self.xmin)/N
+            xvec=np.linspace(self.xmin+shift,self.xmax,num=N)
+            yvec=np.linspace(self.ymin,self.ymax,num=N)
+            Ex=np.zeros(len(xvec))
+            Ey=np.zeros(len(yvec))
+            #V=np.copy(Ex)
+            X,Y= np.meshgrid(xvec,yvec)
+            E_internal=np.copy(X)*0
+            E_ext=np.copy(E_internal)
+            for i in range(0,len(xvec)):
+                Ex[i],Ey[i]=(self.InternalElectrical(xvec[i],0))
+            for j in range(0,len(xvec)):
+                E_internal[j,:]=Ey
+            plt.streamplot(xvec,yvec,E_internal*0,E_internal,density=0.5, zorder=25,color="blue")# vector field of the plot
+            xvec=np.linspace(self.xmin,self.xmax-shift,num=N)
+            yvec=np.linspace(self.ymin,self.ymax,num=N)
+            for i in range(0,len(xvec)):
+                Ex[i],Ey[i]=self.External_E(xvec[i],0,self.iterationcount,self.timestep)
+            for j in range(0,len(xvec)):
+                E_ext[j,:]=Ey
+            plt.streamplot(xvec,yvec,E_ext*0,E_ext,density=0.5, zorder=25,color="red")# vector field of the plot        
+            
+            plt.scatter(self.x,self.y,s=5,color="black")
+            
+            if save==True:
+                SaveFile = "Electrical Field"+ ".png" 
+                plotname=os.path.join(os.getcwd(),self.folder,SaveFile)
+                plt.savefig(plotname)
+            plt.show()
+            plt.pause(0.001)
+        else:
+            N=100
+            plt.clf()
+            plt.xlim(self.xmin,self.xmax)
+            plt.ylim(self.ymin,self.ymax) 
+            plt.xlabel("X [µm]")
+            plt.ylabel("Y [µm]")
+            xvec=np.linspace(self.xmin,self.xmax,num=N)
+            other,E=self.External_E(xvec,0,self.iterationcount,self.timestep)
+            plus=E>0
+            minus=E<0
+            plt.scatter(xvec[plus],0*xvec[plus],color="blue")
+            plt.scatter(xvec[minus],0*xvec[minus],color="red")
+            plt.scatter(self.x,self.y,s=5,color="black")
+            if self.savegif:
+                self.timeframes.append([self.x, self.y, E])
         
         if save==True:
             SaveFile = "Electrical Field"+ ".png" 
@@ -331,8 +372,7 @@ class Simulation_Electron :
         plt.show()
         plt.pause(0.001)
         
-        if self.savegif:
-            self.timeframes.append([self.x, self.y, E])
+
 
 
     def Internal_Potential(self,x,y): 
@@ -415,7 +455,7 @@ class Simulation_Electron :
             plt.show()
         return(V)
     
-    def lauch(self,maxtime,save=False, animation=True,animation_timing=None,phase_lag=False, savegif=True):
+    def lauch(self,maxtime,save=False, animation=True,animation_timing=None,phase_lag=False, savegif=True, phase_lagV2=False):
         """
         Lauch the molecular dynamic simulation of electron inside the 2DEG.
         Will stop when either we are in a steady state as definied by the minimal residue or when we reach the maximal number of iterations.
@@ -467,9 +507,14 @@ class Simulation_Electron :
                 #print(np.max(self.residuey))
             if phase_lag and not (animation or animation=='Timing'):
                 start_iter = 1000
-                if self.iterationcount>=start_iter:
-                    self.show_Electrical_Field() #Show to show part of the electric field, used to show phase lag 
-        
+                if phase_lagV2:
+                    if self.iterationcount>=start_iter:
+                        self.show_Electrical_Field(second_mode=True) #Show to show part of the electric field, used to show phase lag 
+                else:
+                    if self.iterationcount>=start_iter:
+                        self.show_Electrical_Field() #Show to show part of the electric field, used to show phase lag 
+                    
+                    
         if savegif:
             print("Full timeframe:", len(self.timeframes))
             start = int(input("Iter. number to start making gif:\n"))
